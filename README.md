@@ -19,3 +19,7 @@ https://popware.netlify.app
 ## Status
 
 v1.0 — Em evolução
+
+## Autor
+
+[Marcelo Tiozo da Silva](https://github.com/MarceloTiozoSilva)
