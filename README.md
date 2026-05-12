@@ -1,14 +1,21 @@
-# Popware — Human AI Systems
+## Popware — Human AI Systems
 
-Site pessoal de portfólio focado em criação com IA.
+Site pessoal de portfólio com estética industrial/sci-fi,
+construído para documentar criações com IA.
+
+Apresenta projetos ativos nas áreas de automação, visualização de dados,
+desenvolvimento web e ferramentas aplicadas a negócios.
 
 ## Stack
-- Claude Design (geração e iteração visual)
-- HTML/CSS/JS standalone
+
+- HTML / CSS / JS standalone
 - Hospedagem: Netlify
+- Design: assistido por IA (Claude)
 
 ## Live
+
 https://popware.netlify.app
 
 ## Status
+
 v1.0 — Em evolução
