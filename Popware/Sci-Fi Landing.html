@@ -1,0 +1,1496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Popware // Iron Pop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000000;
+    --bg-2: #04080a;
+    --ink: #e6f7fa;
+    --ink-dim: #6f8a90;
+    --cyan: oklch(0.86 0.14 200);
+    --cyan-strong: oklch(0.92 0.18 195);
+    --cyan-deep: oklch(0.55 0.13 205);
+    --line: oklch(0.30 0.04 210 / 0.5);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--ink); font-family: "Space Grotesk", sans-serif; overflow-x: hidden; }
+  html { scroll-behavior: smooth; }
+  body { min-height: 100vh; }
+
+  /* ---------- Ambient stage ---------- */
+  .stage {
+    position: relative;
+    min-height: 100vh;
+    isolation: isolate;
+    overflow: hidden;
+  }
+  .stage::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 60%, oklch(0.55 0.13 205 / 0.18), transparent 70%),
+      radial-gradient(ellipse 90% 60% at 50% 100%, oklch(0.45 0.10 205 / 0.25), transparent 70%);
+    z-index: 0;
+    pointer-events: none;
+  }
+  /* lateral blend confined to the right zone */
+  .hero-blend {
+    position: absolute; inset: 0;
+    z-index: 3; pointer-events: none;
+    background:
+      linear-gradient(to right,
+        #000 0%,
+        rgba(0,0,0,0.95) 10%,
+        rgba(0,0,0,0.55) 22%,
+        rgba(0,0,0,0) 38%,
+        rgba(0,0,0,0) 78%,
+        rgba(0,0,0,0.55) 90%,
+        #000 100%),
+      linear-gradient(to bottom,
+        rgba(0,0,0,0) 70%,
+        rgba(0,0,0,0.6) 92%,
+        #000 100%);
+  }
+  .stage::after {
+    content: "";
+    position: absolute;
+    left: 50%; bottom: 0;
+    width: 220%; height: 55%;
+    transform: translateX(-50%) perspective(800px) rotateX(62deg);
+    transform-origin: 50% 100%;
+    background-image:
+      linear-gradient(to right, oklch(0.55 0.13 205 / 0.18) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0.55 0.13 205 / 0.18) 1px, transparent 1px);
+    background-size: 80px 80px;
+    -webkit-mask-image: linear-gradient(to top, black 0%, black 35%, transparent 90%);
+            mask-image: linear-gradient(to top, black 0%, black 35%, transparent 90%);
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.7;
+  }
+
+  /* scanline overlay */
+  .scanlines {
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0 2px,
+      rgba(255,255,255,0.018) 2px 3px
+    );
+    mix-blend-mode: screen;
+    pointer-events: none;
+    z-index: 50;
+  }
+  .vignette {
+    position: fixed; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.85) 100%);
+    pointer-events: none; z-index: 40;
+  }
+
+  /* ---------- Nav ---------- */
+  nav {
+    position: relative; z-index: 30;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 40px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .brand {
+    display: flex; align-items: center; gap: 12px;
+    color: var(--ink);
+  }
+  .brand-mark {
+    width: 22px; height: 22px;
+    border: 1px solid var(--cyan);
+    transform: rotate(45deg);
+    position: relative;
+  }
+  .brand-mark::before {
+    content: ""; position: absolute; inset: 4px;
+    background: var(--cyan);
+    box-shadow: 0 0 12px var(--cyan-strong);
+  }
+  .brand-name { font-weight: 600; letter-spacing: 0.32em; }
+  .brand-sep { color: var(--cyan-deep); }
+  .nav-links { display: flex; gap: 36px; }
+  .nav-links a {
+    color: var(--ink-dim); text-decoration: none; position: relative;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--cyan-strong); }
+  .nav-meta { display: flex; align-items: center; gap: 12px; position: relative; z-index: 40; background: #000; padding: 8px 12px; align-self: center; }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 10px var(--cyan-strong);
+    animation: blink 2s infinite;
+  }
+  @keyframes blink { 0%,70%,100% { opacity: 1; } 80% { opacity: 0.2; } }
+
+  /* ---------- HUD frame ---------- */
+  .hud {
+    position: absolute; inset: 24px;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .hud-corner {
+    position: absolute; width: 28px; height: 28px;
+    border: 1px solid var(--cyan);
+    opacity: 0.6;
+  }
+  .hud-corner.tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+  .hud-corner.tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+  .hud-corner.bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+  .hud-corner.br { bottom: 0; right: 0; border-left: none; border-top: none; }
+  .hud-tick {
+    position: absolute;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 0.15em;
+    color: var(--cyan-deep);
+    text-transform: uppercase;
+  }
+  .hud-tick.tl { top: 8px; left: 40px; }
+  .hud-tick.tr { top: 8px; right: 40px; }
+  .hero-right .meta-right { z-index: 6; }
+  .hud-tick.bl { bottom: 8px; left: 40px; }
+  .hud-tick.br { bottom: 8px; right: 40px; }
+
+  /* ---------- Hero layout (split: 40% copy / 60% image) ---------- */
+  .hero {
+    position: relative; z-index: 10;
+    display: grid;
+    grid-template-columns: 40% 60%;
+    grid-template-rows: 1fr auto;
+    align-items: stretch;
+    min-height: calc(100vh - 70px);
+    padding: 0;
+    gap: 0;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    left: 40%;
+    top: 20%;
+    height: 60%;
+    width: 1px;
+    background: linear-gradient(to bottom, transparent 0%, #00ffff 50%, transparent 100%);
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 11;
+  }
+  @media (max-width: 768px) { .hero::before { display: none; } }
+  .hero-left {
+    grid-column: 1; grid-row: 1;
+    position: relative; z-index: 5;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 40px 40px 112px;
+    background: #000;
+  }
+  .hero-right {
+    grid-column: 2; grid-row: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-cta {
+    grid-column: 1 / -1; grid-row: 2;
+    position: relative; z-index: 6;
+    padding: 0 40px 60px;
+    text-align: center;
+  }
+
+  .hero-figure {
+    position: absolute;
+    left: 50%; bottom: 0;
+    transform: translateX(-50%);
+    height: 100%;
+    z-index: 2;
+    pointer-events: none;
+    filter: drop-shadow(0 0 60px oklch(0.55 0.13 205 / 0.5));
+    animation: float 8s ease-in-out infinite;
+  }
+  /* feather all edges of the character so it embeds into the scene */
+  .hero-figure img {
+    height: 100%; width: auto; display: block; position: relative; z-index: 2;
+    -webkit-mask-image:
+      radial-gradient(ellipse 70% 80% at 50% 45%, #000 55%, rgba(0,0,0,0.6) 75%, transparent 100%),
+      linear-gradient(to bottom, transparent 0%, #000 12%, #000 84%, transparent 100%),
+      linear-gradient(to right, transparent 0%, #000 14%, #000 86%, transparent 100%);
+    -webkit-mask-composite: source-in;
+            mask-image:
+      radial-gradient(ellipse 70% 80% at 50% 45%, #000 55%, rgba(0,0,0,0.6) 75%, transparent 100%),
+      linear-gradient(to bottom, transparent 0%, #000 12%, #000 84%, transparent 100%),
+      linear-gradient(to right, transparent 0%, #000 14%, #000 86%, transparent 100%);
+            mask-composite: intersect;
+  }
+  @keyframes float { 0%,100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -10px); } }
+
+  .hero-headline { max-width: 560px; }
+  .hero-headline .eyebrow { justify-content: flex-start; margin-bottom: 28px; }
+  .hero-headline .eyebrow::after { display: none; }
+  .hero-headline h1 {
+    font-size: clamp(48px, 6vw, 96px);
+    text-align: left;
+    line-height: 0.95;
+  }
+  .hero-right .meta-right {
+    position: absolute;
+    top: 40px; right: 40px;
+    z-index: 4;
+  }
+
+  /* core pulse — sits over the chest emitter */
+  .core {
+    position: absolute;
+    left: 50%; top: 47%;
+    width: 180px; height: 180px;
+    transform: translate(-50%, -50%);
+    z-index: 3; pointer-events: none;
+  }
+  .core-ring {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    border: 1px solid var(--cyan);
+    opacity: 0;
+    animation: pulse 3.2s ease-out infinite;
+  }
+  .core-ring:nth-child(2) { animation-delay: 1.06s; }
+  .core-ring:nth-child(3) { animation-delay: 2.13s; }
+  @keyframes pulse {
+    0% { transform: scale(0.4); opacity: 0.9; border-width: 2px; }
+    80% { opacity: 0.0; }
+    100% { transform: scale(2.0); opacity: 0; border-width: 1px; }
+  }
+  .core-glow {
+    position: absolute; inset: 30%;
+    border-radius: 50%;
+    background: radial-gradient(circle, oklch(0.92 0.18 195 / 0.6), transparent 70%);
+    filter: blur(8px);
+    animation: breathe 2.4s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%,100% { opacity: 0.55; transform: scale(1); }
+    50%     { opacity: 1.0;  transform: scale(1.12); }
+  }
+
+  /* (legacy hero-copy styles removed; split layout uses .hero-left / .hero-right) */
+  .meta-block {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.18em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    line-height: 1.8;
+    max-width: 260px;
+  }
+  .meta-block .label { color: var(--cyan-deep); }
+  .meta-block .val { color: var(--ink); }
+  .meta-right { justify-self: end; text-align: right; }
+
+  .headline {
+    text-align: center;
+    grid-column: 2;
+  }
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.4em;
+    color: var(--cyan);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: inline-flex; align-items: center; gap: 12px;
+  }
+  .eyebrow::before, .eyebrow::after {
+    content: ""; width: 40px; height: 1px; background: var(--cyan-deep);
+  }
+  h1 {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 300;
+    font-size: clamp(36px, 4.6vw, 72px);
+    line-height: 1.0;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+  }
+  h1 .line-light { color: var(--ink); font-weight: 800; letter-spacing: -0.02em; display: block; }
+  h1 .line-sub { color: var(--cyan-strong); font-weight: 300; letter-spacing: 0; display: block; font-size: 0.55em; line-height: 1.05; margin-top: 6px; }
+  h1 .strong { font-weight: 700; color: var(--cyan-strong); }
+
+  /* glitch effect */
+  .glitch {
+    position: relative;
+    display: inline-block;
+  }
+  .glitch::before, .glitch::after {
+    content: attr(data-text);
+    position: absolute; left: 0; top: 0;
+    width: 100%;
+    overflow: hidden;
+  }
+  .glitch::before {
+    color: oklch(0.86 0.14 200);
+    transform: translate(0,0);
+    clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+    animation: glitch-a 4.2s infinite steps(1);
+    mix-blend-mode: screen;
+    opacity: 0;
+  }
+  .glitch::after {
+    color: oklch(0.7 0.18 25);
+    clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
+    animation: glitch-b 4.2s infinite steps(1);
+    mix-blend-mode: screen;
+    opacity: 0;
+  }
+  @keyframes glitch-a {
+    0%, 92%, 100% { opacity: 0; transform: translate(0,0); }
+    93% { opacity: 0.9; transform: translate(-3px, -1px); }
+    95% { opacity: 0.9; transform: translate( 2px,  1px); }
+    97% { opacity: 0.9; transform: translate(-1px,  0px); }
+  }
+  @keyframes glitch-b {
+    0%, 92%, 100% { opacity: 0; transform: translate(0,0); }
+    93% { opacity: 0.9; transform: translate( 2px,  1px); }
+    95% { opacity: 0.9; transform: translate(-3px, -1px); }
+    97% { opacity: 0.9; transform: translate( 1px,  0px); }
+  }
+
+  .subline {
+    margin-top: 28px;
+    font-size: 14px;
+    color: var(--ink-dim);
+    letter-spacing: 0.05em;
+    max-width: 520px;
+    margin-left: auto; margin-right: auto;
+    line-height: 1.6;
+  }
+
+  /* ---------- CTA ---------- */
+  .cta-row {
+    margin-top: 40px;
+    display: flex; gap: 16px; justify-content: center;
+  }
+  .btn {
+    --glow: oklch(0.86 0.14 200);
+    position: relative;
+    display: inline-flex; align-items: center; gap: 14px;
+    padding: 18px 34px;
+    background: transparent;
+    border: 1px solid var(--cyan);
+    color: var(--ink);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; letter-spacing: 0.25em;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+    overflow: hidden;
+    transition: color 0.25s, letter-spacing 0.25s;
+    box-shadow:
+      0 0 0 1px oklch(0.55 0.13 205 / 0.0),
+      0 0 24px oklch(0.55 0.13 205 / 0.35),
+      inset 0 0 24px oklch(0.55 0.13 205 / 0.15);
+  }
+  .btn::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, oklch(0.86 0.14 200 / 0.25), transparent);
+    transform: translateX(-100%);
+    transition: transform 0.6s;
+  }
+  .btn:hover::before { transform: translateX(100%); }
+  .btn:hover {
+    color: #001216;
+    background: var(--cyan-strong);
+    box-shadow:
+      0 0 30px var(--cyan-strong),
+      0 0 60px oklch(0.86 0.14 200 / 0.6),
+      inset 0 0 20px oklch(0.55 0.13 205 / 0.2);
+    letter-spacing: 0.32em;
+  }
+  .btn .arrow { font-size: 14px; }
+  .btn.ghost {
+    border-color: var(--line);
+    color: var(--ink-dim);
+    box-shadow: none;
+  }
+  .btn.ghost:hover {
+    color: var(--cyan-strong);
+    background: transparent;
+    border-color: var(--cyan);
+    box-shadow: 0 0 20px oklch(0.55 0.13 205 / 0.4);
+  }
+
+  /* ---------- Particles ---------- */
+  canvas#particles {
+    position: absolute; inset: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* ---------- Bottom telemetry strip ---------- */
+  .telemetry {
+    position: relative; z-index: 10;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 40px;
+    min-height: 32px;
+    border-top: 1px solid var(--line);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 0.2em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    opacity: 0.6;
+    box-sizing: border-box;
+    gap: 24px;
+  }
+  .telemetry .group { display: flex; gap: 28px; align-items: center; flex-wrap: nowrap; white-space: nowrap; }
+  .telemetry .group:last-child { justify-content: flex-end; }
+  .telemetry .group span { display: inline-flex; align-items: center; gap: 6px; line-height: 1; }
+  .telemetry .v { color: var(--cyan); }
+  .bar {
+    display: inline-block; width: 80px; height: 6px;
+    background: oklch(0.30 0.04 210 / 0.4);
+    position: relative;
+    vertical-align: middle;
+  }
+  .bar::after {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: var(--w, 60%);
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan-strong);
+  }
+
+  /* ============================================================
+     SECTION 2 — ABOUT IRON POP
+     ============================================================ */
+  .about {
+    position: relative;
+    padding: 140px 40px 140px;
+    background: linear-gradient(180deg, #000 0%, #02080a 50%, #000 100%);
+    border-top: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .about::before {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, oklch(0.55 0.13 205 / 0.10) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0.55 0.13 205 / 0.10) 1px, transparent 1px);
+    background-size: 60px 60px;
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+            mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    pointer-events: none;
+    opacity: 0.6;
+  }
+  .section-shell {
+    max-width: 1280px; margin: 0 auto;
+    position: relative; z-index: 2;
+  }
+  .section-tag {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.4em;
+    color: var(--cyan);
+    text-transform: uppercase;
+    display: inline-flex; align-items: center; gap: 14px;
+    margin-bottom: 28px;
+  }
+  .section-tag::before {
+    content: ""; width: 36px; height: 1px; background: var(--cyan-deep);
+  }
+  .section-tag .num { color: var(--ink-dim); }
+
+  .about-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 80px;
+    align-items: center;
+  }
+  .about-copy h2 {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 300;
+    font-size: clamp(36px, 4.4vw, 64px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+  .about-copy h2 .strong { font-weight: 700; color: var(--cyan-strong); }
+  .about-copy .statement {
+    font-size: 17px;
+    line-height: 1.7;
+    color: var(--ink);
+    max-width: 520px;
+    letter-spacing: 0.01em;
+  }
+  .about-copy .statement b { color: var(--cyan); font-weight: 500; }
+  .about-copy .signature {
+    margin-top: 36px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.25em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    display: flex; gap: 24px; align-items: center;
+  }
+  .about-copy .signature .v { color: var(--cyan); }
+
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .stat {
+    position: relative;
+    padding: 26px 28px;
+    border: 1px solid var(--line);
+    background: linear-gradient(135deg, oklch(0.20 0.04 210 / 0.25), transparent 70%);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 24px;
+    overflow: hidden;
+  }
+  .stat::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--cyan);
+    box-shadow: 0 0 12px var(--cyan-strong);
+  }
+  .stat-corner {
+    position: absolute; width: 14px; height: 14px;
+    border: 1px solid var(--cyan);
+    opacity: 0.7;
+  }
+  .stat-corner.tr { top: 8px; right: 8px; border-left: none; border-bottom: none; }
+  .stat-corner.bl { bottom: 8px; left: 18px; border-right: none; border-top: none; }
+  .stat .idx {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 0.25em;
+    color: var(--cyan-deep);
+  }
+  .stat .label-block {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .stat .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.22em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+  .stat .value {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 500;
+    font-size: 44px;
+    line-height: 1;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .value .suffix { color: var(--cyan); font-size: 22px; margin-left: 4px; vertical-align: top; }
+  .stat .meter {
+    width: 80px; height: 56px;
+    display: flex; align-items: flex-end; gap: 3px;
+  }
+  .stat .meter span {
+    flex: 1; background: var(--cyan-deep);
+    box-shadow: 0 0 6px oklch(0.55 0.13 205 / 0.6);
+    animation: meter-pulse 1.6s ease-in-out infinite;
+  }
+  .stat .meter span:nth-child(2) { animation-delay: 0.15s; }
+  .stat .meter span:nth-child(3) { animation-delay: 0.30s; }
+  .stat .meter span:nth-child(4) { animation-delay: 0.45s; }
+  .stat .meter span:nth-child(5) { animation-delay: 0.60s; }
+  @keyframes meter-pulse {
+    0%,100% { background: var(--cyan-deep); }
+    50%     { background: var(--cyan); box-shadow: 0 0 10px var(--cyan-strong); }
+  }
+
+  /* ============================================================
+     SECTION 3 — DEPLOYED OUTPUTS
+     ============================================================ */
+  .portfolio {
+    position: relative;
+    padding: 140px 40px 160px;
+    background: #000;
+    border-top: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .portfolio-head {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 64px;
+    flex-wrap: wrap; gap: 24px;
+  }
+  .portfolio-head h2 {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 300;
+    font-size: clamp(48px, 6vw, 96px);
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+  }
+  .portfolio-head h2 .strong { font-weight: 700; color: var(--cyan-strong); }
+  .portfolio-head .right-meta {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.22em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    text-align: right;
+    line-height: 1.8;
+  }
+  .portfolio-head .right-meta .v { color: var(--cyan); }
+
+  .grid-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .card {
+    position: relative;
+    background: linear-gradient(180deg, oklch(0.15 0.02 210 / 0.4), oklch(0.10 0.02 210 / 0.2));
+    border: 1px solid var(--line);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.4s cubic-bezier(.2,.7,.2,1), border-color 0.3s, box-shadow 0.3s;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    border-color: var(--cyan);
+    box-shadow:
+      0 0 0 1px oklch(0.55 0.13 205 / 0.4),
+      0 20px 40px -20px oklch(0.55 0.13 205 / 0.6),
+      0 0 60px -10px oklch(0.55 0.13 205 / 0.4);
+  }
+  .card .thumb {
+    position: relative;
+    aspect-ratio: 4/3;
+    background:
+      radial-gradient(ellipse at 30% 30%, oklch(0.40 0.10 205 / 0.3), transparent 60%),
+      linear-gradient(135deg, oklch(0.18 0.04 210 / 0.6), oklch(0.06 0.02 210 / 0.9));
+    overflow: hidden;
+  }
+  .card .thumb::before {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0 3px,
+      oklch(0.55 0.13 205 / 0.05) 3px 4px
+    );
+    pointer-events: none;
+  }
+  .card .thumb::after {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, oklch(0.55 0.13 205 / 0.18) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0.55 0.13 205 / 0.18) 1px, transparent 1px);
+    background-size: 30px 30px;
+    -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 80%);
+            mask-image: radial-gradient(ellipse at center, black 0%, transparent 80%);
+    opacity: 0.5;
+  }
+  .card .thumb-glyph {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.3em;
+    color: var(--cyan-deep);
+    text-transform: uppercase;
+  }
+  .card .thumb-glyph .core-icon {
+    width: 56px; height: 56px;
+    border: 1px solid var(--cyan);
+    border-radius: 50%;
+    position: relative;
+    margin-right: 14px;
+    box-shadow: 0 0 20px oklch(0.55 0.13 205 / 0.4);
+  }
+  .card .thumb-glyph .core-icon::before {
+    content: ""; position: absolute; inset: 14px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 16px var(--cyan-strong);
+  }
+  .card:hover .thumb-glyph .core-icon::before {
+    animation: card-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes card-pulse {
+    0%,100% { transform: scale(1); }
+    50%     { transform: scale(1.2); }
+  }
+  .card .thumb .badge {
+    position: absolute;
+    top: 14px; left: 14px;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid var(--line);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px; letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .card .thumb .badge.active { color: var(--cyan); border-color: var(--cyan-deep); }
+  .card .thumb .badge .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+  }
+  .card .thumb .badge.active .dot { animation: blink 1.6s infinite; }
+  .card .thumb .frame-id {
+    position: absolute;
+    bottom: 14px; right: 14px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px; letter-spacing: 0.22em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+  .card .meta {
+    padding: 22px 24px 26px;
+    border-top: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .card .meta .title {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 500;
+    font-size: 18px;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  .card .meta .tag {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 0.22em;
+    color: var(--cyan);
+    text-transform: uppercase;
+  }
+  .card .meta .tag .sep { color: var(--ink-dim); margin: 0 8px; }
+  .card .meta .tag .dim { color: var(--ink-dim); }
+
+  /* ============================================================
+     SECTION 4 — START A MISSION
+     ============================================================ */
+  .deploy {
+    position: relative;
+    padding: 160px 40px 80px;
+    background:
+      radial-gradient(ellipse 60% 70% at 50% 50%, oklch(0.40 0.10 205 / 0.18), transparent 70%),
+      #000;
+    border-top: 1px solid var(--line);
+    overflow: hidden;
+    text-align: center;
+  }
+  .deploy::after {
+    content: ""; position: absolute;
+    left: 50%; bottom: 0;
+    width: 220%; height: 50%;
+    transform: translateX(-50%) perspective(800px) rotateX(62deg);
+    transform-origin: 50% 100%;
+    background-image:
+      linear-gradient(to right, oklch(0.55 0.13 205 / 0.18) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0.55 0.13 205 / 0.18) 1px, transparent 1px);
+    background-size: 80px 80px;
+    -webkit-mask-image: linear-gradient(to top, black 0%, black 35%, transparent 90%);
+            mask-image: linear-gradient(to top, black 0%, black 35%, transparent 90%);
+    pointer-events: none;
+    opacity: 0.6;
+  }
+  .deploy-shell { position: relative; z-index: 2; max-width: 720px; margin: 0 auto; }
+  .deploy h2 {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 300;
+    font-size: clamp(56px, 7vw, 112px);
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+  .deploy h2 .strong { font-weight: 700; color: var(--cyan-strong); }
+  .deploy .lead {
+    font-size: 16px;
+    color: var(--ink-dim);
+    letter-spacing: 0.04em;
+    line-height: 1.6;
+    max-width: 480px;
+    margin: 0 auto 48px;
+  }
+  .deploy-form {
+    display: flex; gap: 0;
+    max-width: 560px; margin: 0 auto;
+    border: 1px solid var(--cyan);
+    box-shadow:
+      0 0 24px oklch(0.55 0.13 205 / 0.35),
+      inset 0 0 24px oklch(0.55 0.13 205 / 0.1);
+    background: rgba(0,0,0,0.5);
+    transition: box-shadow 0.3s, border-color 0.3s;
+  }
+  .deploy-form:focus-within {
+    box-shadow:
+      0 0 30px oklch(0.86 0.14 200 / 0.6),
+      inset 0 0 24px oklch(0.55 0.13 205 / 0.2);
+  }
+  .deploy-form input {
+    flex: 1;
+    background: transparent;
+    border: none; outline: none;
+    color: var(--ink);
+    padding: 22px 24px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+  }
+  .deploy-form input::placeholder { color: var(--ink-dim); }
+  .deploy-form button {
+    border: none;
+    background: var(--cyan-deep);
+    color: #001216;
+    padding: 0 32px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; letter-spacing: 0.28em;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 10px;
+    transition: background 0.25s, letter-spacing 0.25s, color 0.25s;
+    border-left: 1px solid var(--cyan);
+  }
+  .deploy-form button:hover {
+    background: var(--cyan-strong);
+    letter-spacing: 0.34em;
+    box-shadow: inset 0 0 24px oklch(0.40 0.10 205 / 0.4);
+  }
+  .deploy-coords {
+    margin-top: 56px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 0.22em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    border-top: 1px solid var(--line);
+    padding: 22px 0 0;
+  }
+  .deploy-coords .v { color: var(--cyan); }
+  .deploy-coords .group { display: flex; gap: 24px; align-items: center; }
+
+  footer.site-foot {
+    position: relative;
+    padding: 28px 40px;
+    border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 0.22em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    background: #000;
+  }
+  footer.site-foot .left { display: flex; align-items: center; gap: 12px; }
+  footer.site-foot .left .mark {
+    width: 14px; height: 14px;
+    border: 1px solid var(--cyan);
+    transform: rotate(45deg);
+    position: relative;
+  }
+  footer.site-foot .left .mark::before {
+    content: ""; position: absolute; inset: 3px;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan-strong);
+  }
+
+  @media (max-width: 900px) {
+    .about-grid { grid-template-columns: 1fr; gap: 48px; }
+    .grid-cards { grid-template-columns: 1fr; }
+    .stat .value { font-size: 36px; }
+  }
+  /* ---------- Mobile responsive ---------- */
+  .nav-toggle { display: none; background: transparent; border: 1px solid var(--cyan-deep); color: var(--cyan); width: 40px; height: 40px; cursor: pointer; font-family: "JetBrains Mono", monospace; }
+  @media (max-width: 768px) {
+    /* global */
+    html, body { overflow-x: hidden; max-width: 100vw; }
+    body { word-wrap: break-word; }
+    h1, h2, h3, p, span, div { word-break: normal; overflow-wrap: break-word; hyphens: none; }
+
+    /* nav */
+    nav { padding: 14px 16px; flex-wrap: nowrap; gap: 12px; }
+    .brand { flex: 1; min-width: 0; gap: 8px; white-space: nowrap; overflow: hidden; }
+    .brand-name { font-size: 12px; letter-spacing: 0.18em; }
+    .brand-sep { font-size: 10px; }
+    .brand > span:last-child { font-size: 10px; letter-spacing: 0.1em; display: inline; }
+    .brand-mark { width: 18px; height: 18px; flex-shrink: 0; }
+    .nav-toggle { display: inline-flex; align-items: center; justify-content: center; border: none; width: 32px; height: 32px; font-size: 22px; padding: 0; }
+    .nav-links { display: none; flex-direction: column; gap: 12px; width: 100%; order: 3; padding: 14px 0 4px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 10px; flex-basis: 100%; }
+    .nav-links.open { display: flex; }
+    .nav-meta { display: none; }
+
+    /* hero */
+    .hero { grid-template-columns: 1fr; grid-template-rows: auto auto auto; min-height: auto; }
+    .hero-left { grid-column: 1; grid-row: 1; padding: 36px 20px 20px; align-items: center; }
+    .hero-headline { max-width: 100%; text-align: center; }
+    .hero-headline .eyebrow { justify-content: center; font-size: 10px; letter-spacing: 0.2em; }
+    .hero-headline h1 { text-align: center; font-size: 32px; line-height: 1; }
+    .hero-headline h1 .line-light { font-size: 32px; }
+    .hero-headline h1 .line-sub { font-size: 16px; }
+    .hero-right { grid-column: 1; grid-row: 2; min-height: 56vh; }
+    .hero-right .meta-right { display: none; }
+    .hero-cta { grid-column: 1; grid-row: 3; padding: 12px 20px 32px; }
+    .cta-row { flex-direction: column; gap: 10px; align-items: stretch; }
+    .cta-row .btn { width: 100%; justify-content: center; font-size: 11px; padding: 14px 18px; }
+    .telemetry { display: none; }
+    .hud { display: none; }
+
+    /* sections */
+    .section-shell, .deploy-shell { padding-left: 20px; padding-right: 20px; }
+    .section-tag { font-size: 10px; letter-spacing: 0.28em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    h2 { font-size: 28px !important; line-height: 1.05; }
+    .lead, p, .statement { font-size: 13px; line-height: 1.55; }
+    .label, .eyebrow, .tag, .frame-id, .badge { font-size: 10px !important; letter-spacing: 0.18em; }
+
+    /* about + stats */
+    .about { padding-bottom: 32px; }
+    .about-grid { grid-template-columns: 1fr !important; gap: 28px; margin-bottom: 0; }
+    .about-copy .statement { font-size: 15px !important; line-height: 1.5 !important; }
+    .about-copy .signature { margin-top: 24px; gap: 14px !important; flex-wrap: wrap; font-size: 10px !important; letter-spacing: 0.14em; }
+    .about-copy .signature span { white-space: nowrap; }
+    .stats { grid-template-columns: 1fr; gap: 12px; margin-bottom: 0; }
+    .stat { padding: 16px 18px; }
+    .stat .label { font-size: 10px !important; line-height: 1.25; max-height: 2.5em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .stat .value { font-size: 32px; }
+
+    /* portfolio */
+    .grid-cards { grid-template-columns: 1fr; gap: 16px; }
+    .portfolio-head { flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 28px; }
+    .portfolio-head h2 { font-size: 28px; }
+    .right-meta { font-size: 10px !important; line-height: 1.6; letter-spacing: 0.15em; white-space: nowrap; }
+    .right-meta br { display: block; }
+
+    /* card — unified block, zero gap between thumb and meta */
+    .card { display: flex; flex-direction: column; gap: 0; }
+    .card .thumb { aspect-ratio: 16/10; margin: 0 0 -1px 0; display: block; }
+    .card .meta { padding: 14px 18px 16px; margin: 0; border-top: 1px solid rgba(255,255,255,0.06); display: block; }
+    .card .title { font-size: 16px !important; line-height: 1.25; word-break: normal !important; overflow-wrap: normal !important; white-space: normal; margin-bottom: 4px; }
+    .card .tag { font-size: 11px !important; letter-spacing: 0.1em; line-height: 1.5; word-break: normal !important; overflow-wrap: normal !important; white-space: normal !important; }
+    .card .tag .sep { display: inline; }
+    .card .tag .dim { display: inline; }
+    .card .badge { font-size: 9px !important; padding: 4px 8px; }
+    .card .frame-id { font-size: 9px !important; }
+
+    /* deploy / contact */
+    .deploy { padding-top: 48px; padding-bottom: 48px; }
+    .deploy h2 { font-size: 32px; }
+    .deploy .section-tag { font-size: 11px !important; letter-spacing: 0.22em; white-space: nowrap; }
+    .deploy-form { flex-direction: column; width: 100%; gap: 10px; max-width: 100%; }
+    .deploy-form input, .deploy-form button { width: 100%; font-size: 12px; padding: 14px 16px; box-sizing: border-box; }
+    .deploy-form input::placeholder { font-size: 12px; letter-spacing: 0.04em; }
+    .deploy-coords { margin-top: 28px; flex-direction: column; gap: 8px; align-items: stretch; }
+    .deploy-coords .group { gap: 14px; flex-wrap: nowrap; justify-content: flex-start; font-size: 9px !important; letter-spacing: 0.12em; white-space: nowrap; }
+    .deploy-coords .group span:last-child:nth-child(2) ~ * { display: none; }
+    .deploy-coords .group:last-child span:last-child { display: none; } /* hide RESPOSTA ≤ 24H */
+
+    /* footer */
+    footer.site-foot { padding: 18px 20px; flex-direction: column; gap: 8px; align-items: flex-start; font-size: 10px; letter-spacing: 0.15em; text-align: left; }
+    footer.site-foot > div { width: 100%; }
+
+    /* modal */
+    .modal { padding: 28px 22px; }
+    .modal h3 { font-size: 20px; }
+    .modal-body { font-size: 12px; line-height: 1.7; }
+    .modal-tag { font-size: 10px; }
+  }
+
+  @media (max-width: 380px) {
+    .hero-headline h1 .line-light { font-size: 28px; }
+    .hero-headline h1 .line-sub { font-size: 14px; }
+    .brand > span:last-child { display: none; }
+    .brand-sep { display: none; }
+  }
+
+  /* ---------- Modal ---------- */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(6px);
+    z-index: 200;
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  .modal-overlay.open { display: flex; opacity: 1; }
+  .modal {
+    position: relative;
+    width: 100%; max-width: 560px;
+    background: #0a0a0a;
+    border: 1px solid var(--cyan-deep);
+    padding: 40px 36px;
+    transform: scale(0.96) translateY(8px);
+    transition: transform 0.3s ease;
+    box-shadow: 0 0 60px oklch(0.55 0.13 205 / 0.25);
+  }
+  .modal-overlay.open .modal { transform: scale(1) translateY(0); }
+  .modal .hud-corner { width: 18px; height: 18px; opacity: 0.9; }
+  .modal-close {
+    position: absolute; top: 14px; right: 14px;
+    width: 32px; height: 32px;
+    background: transparent; border: 1px solid var(--cyan-deep);
+    color: var(--cyan); font-family: "JetBrains Mono", monospace;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-close:hover { background: var(--cyan); color: #000; box-shadow: 0 0 16px var(--cyan-strong); }
+  .modal-tag { font-family: "JetBrains Mono", monospace; font-size: 11px; letter-spacing: 0.25em; color: var(--cyan); text-transform: uppercase; margin-bottom: 12px; }
+  .modal h3 { font-family: "Space Grotesk", sans-serif; font-weight: 500; font-size: 26px; line-height: 1.1; text-transform: uppercase; letter-spacing: -0.01em; margin-bottom: 20px; }
+  .modal-body { font-family: "JetBrains Mono", monospace; font-size: 13px; line-height: 1.8; color: var(--ink-dim); white-space: pre-line; }
+  .modal-body strong { color: var(--ink); }
+  .modal-cta { margin-top: 24px; display: inline-flex; align-items: center; gap: 12px; padding: 12px 22px; border: 1px solid var(--cyan); color: var(--cyan); text-decoration: none; font-family: "JetBrains Mono", monospace; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; transition: all 0.2s; }
+  .modal-cta:hover { background: var(--cyan); color: #000; box-shadow: 0 0 20px var(--cyan-strong); }
+  .card { cursor: pointer; }
+  .card[data-dead] { cursor: default; }
+
+  /* hide on small */
+  @media (max-width: 900px) {
+    .meta-block { display: none; }
+    .hero { grid-template-columns: 1fr; }
+    .hero-left { padding: 32px 24px 16px; }
+    .hero-right { min-height: 60vh; }
+    h1 { white-space: normal; font-size: clamp(40px, 12vw, 72px); }
+  }
+</style>
+</head>
+<body>
+
+<div class="scanlines"></div>
+<div class="vignette"></div>
+
+<section class="stage" data-screen-label="01 Hero">
+
+  <div class="hud">
+    <div class="hud-corner tl"></div>
+    <div class="hud-corner tr"></div>
+    <div class="hud-corner bl"></div>
+    <div class="hud-corner br"></div>
+    <div class="hud-tick tl">SECTOR 04 / BAY 12</div>
+    <div class="hud-tick tr">REC: <span style="color:var(--cyan)">●</span> 04:29:26</div>
+    <div class="hud-tick bl">CAL // 0.024</div>
+    <div class="hud-tick br">FRAME 1920×1080</div>
+  </div>
+
+  <canvas id="particles"></canvas>
+
+  <nav>
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <span class="brand-name">POPWARE</span>
+      <span class="brand-sep">//</span>
+      <span>EST. 2026</span>
+    </div>
+    <button class="nav-toggle" aria-label="Menu" onclick="document.querySelector('.nav-links').classList.toggle('open')">☰</button>
+    <div class="nav-links">
+      <a href="#about">Plataforma</a>
+      <a href="#deploy">Registro</a>
+    </div>
+    <div class="nav-meta">
+      <span class="status-dot"></span>
+      <span>Conexão Estável</span>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <!-- LEFT: copy zone -->
+    <div class="hero-left">
+      <div class="hero-headline">
+        <div class="eyebrow">Prompt-Native // Human-Driven</div>
+        <h1>
+          <span class="line-light">Popware</span>
+          <span class="line-sub glitch" data-text="Human AI">Human AI</span>
+          <span class="line-sub glitch" data-text="Systems">Systems</span>
+        </h1>
+      </div>
+    </div>
+
+    <!-- RIGHT: image zone -->
+    <div class="hero-right">
+      <div class="hero-figure">
+        <img src="assets/hero-clean.png" alt="Marcelo no traje Iron Pop" />
+      </div>
+      <div class="core" aria-hidden="true">
+        <div class="core-ring"></div>
+        <div class="core-ring"></div>
+        <div class="core-ring"></div>
+        <div class="core-glow"></div>
+      </div>
+      <div class="hero-blend"></div>
+      <div class="meta-block meta-right">
+        <div><span class="label">ENV</span> &nbsp; <span class="val">−40°C / 220°C</span></div>
+        <div><span class="label">RANGE</span> &nbsp; <span class="val">96 HRS</span></div>
+        <div><span class="label">SHIELD</span> &nbsp; <span class="val">Δ-IV NOM.</span></div>
+        <div><span class="label">SIG</span> &nbsp; <span class="val">SILENT</span></div>
+      </div>
+    </div>
+
+    <!-- BOTTOM: CTAs full width -->
+    <div class="hero-cta">
+      <div class="cta-row">
+        <a class="btn" href="https://wa.me/5545998012555" target="_blank" rel="noopener"><span>Solicitar Projeto</span><span class="arrow">→</span></a>
+        <a class="btn ghost" href="#portfolio"><span>Ver Criações</span></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="telemetry">
+    <div class="group">
+      <span>CORE <span class="v">98.4%</span> <span class="bar" style="--w:98%"></span></span>
+      <span>SHIELD <span class="v">76%</span> <span class="bar" style="--w:76%"></span></span>
+      <span>THRUST <span class="v">42%</span> <span class="bar" style="--w:42%"></span></span>
+    </div>
+    <div class="group">
+      <span>LAT 24.9555° S</span>
+      <span>LON 53.4552° W</span>
+      <span class="v">● ARMED</span>
+    </div>
+  </div>
+
+</section>
+
+<!-- ============================================================
+     SECTION 2 — ABOUT IRON POP
+     ============================================================ -->
+<section class="about" id="about" data-screen-label="02 About">
+  <div class="section-shell">
+    <div class="section-tag"><span class="num">02 //</span> Sobre a Popware</div>
+    <div class="about-grid">
+      <div class="about-copy">
+        <h2><span style="display:block; color: var(--ink);">IA aplicada à decisão</span><span class="strong">do conceito ao executável.</span></h2>
+        <p class="statement">
+          Popware é a marca pessoal para criação com IA — uma camada de <b>ferramentas, prompts e sistemas</b>
+          que traduzem ideias brutas em entregas visuais e digitais.
+          Cada artefato é forjado em loop: briefing recebido, modelo em movimento, resultado entregue.
+        </p>
+        <div class="signature">
+          <span>OPERADOR <span class="v">MARCELO</span></span>
+          <span>STACK <span class="v">PROMPT-NATIVE</span></span>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-corner tr"></span>
+          <span class="stat-corner bl"></span>
+          <div class="idx">01</div>
+          <div class="label-block">
+            <div class="label">Ferramentas no Stack Ativo</div>
+            <div class="value" data-count="12">0<span class="suffix">+</span></div>
+          </div>
+          <div class="meter"><span></span><span></span><span></span><span></span><span></span></div>
+        </div>
+        <div class="stat">
+          <span class="stat-corner tr"></span>
+          <span class="stat-corner bl"></span>
+          <div class="idx">02</div>
+          <div class="label-block">
+            <div class="label">Projetos Documentados</div>
+            <div class="value" data-count="60">0<span class="suffix">+</span></div>
+          </div>
+          <div class="meter"><span></span><span></span><span></span><span></span><span></span></div>
+        </div>
+        <div class="stat">
+          <span class="stat-corner tr"></span>
+          <span class="stat-corner bl"></span>
+          <div class="idx">03</div>
+          <div class="label-block">
+            <div class="label">Meses Explorando IA</div>
+            <div class="value" data-count="7">0</div>
+          </div>
+          <div class="meter"><span></span><span></span><span></span><span></span><span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION 3 — DEPLOYED OUTPUTS
+     ============================================================ -->
+<section class="portfolio" id="portfolio" data-screen-label="03 Portfolio">
+  <div class="section-shell">
+    <div class="section-tag"><span class="num">03 //</span> Portfólio de Criação</div>
+    <div class="portfolio-head">
+      <h2>Artefatos<br/><span class="strong glitch" data-text="gerados.">gerados.</span></h2>
+      <div class="right-meta">
+        Índice <span class="v">06</span> de <span class="v">318</span><br/>
+        Filtro <span class="v">DESTAQUE</span><br/>
+        Sync <span class="v">AO VIVO</span>
+      </div>
+    </div>
+
+    <div class="grid-cards">
+      <article class="card" data-modal="m1">
+        <div class="thumb">
+          <div class="badge active"><span class="dot"></span>Ativo</div>
+          <div class="thumb-glyph"><div class="core-icon"></div>OP-001</div>
+          <div class="frame-id">FRAME 01 / Landing</div>
+        </div>
+        <div class="meta">
+          <div class="title">Popware Landing Page</div>
+          <div class="tag">Landing Page <span class="sep">/</span> <span class="dim">Claude Design</span></div>
+        </div>
+      </article>
+
+      <article class="card" data-modal="m2">
+        <div class="thumb">
+          <div class="badge active"><span class="dot"></span>Ativo</div>
+          <div class="thumb-glyph"><div class="core-icon"></div>OP-002</div>
+          <div class="frame-id">FRAME 02 / 3D Viz</div>
+        </div>
+        <div class="meta">
+          <div class="title">Dashboard 3D Compras</div>
+          <div class="tag">Visualização <span class="sep">/</span> <span class="dim">Python + Plotly.js</span></div>
+        </div>
+      </article>
+
+      <article class="card" data-modal="m3">
+        <div class="thumb">
+          <div class="badge active"><span class="dot"></span>Ativo</div>
+          <div class="thumb-glyph"><div class="core-icon"></div>OP-003</div>
+          <div class="frame-id">FRAME 03 / Workflow</div>
+        </div>
+        <div class="meta">
+          <div class="title">AI Workflow de Compras</div>
+          <div class="tag">Automação <span class="sep">/</span> <span class="dim">n8n + Groq + WhatsApp</span></div>
+        </div>
+      </article>
+
+      <article class="card" data-modal="m4">
+        <div class="thumb">
+          <div class="badge active"><span class="dot"></span>Ativo</div>
+          <div class="thumb-glyph"><div class="core-icon"></div>OP-004</div>
+          <div class="frame-id">FRAME 04 / Sheets</div>
+        </div>
+        <div class="meta">
+          <div class="title">Análise de Custos 2026</div>
+          <div class="tag">Planilha <span class="sep">/</span> <span class="dim">Google Sheets + INCC</span></div>
+        </div>
+      </article>
+
+      <article class="card" data-modal="m5">
+        <div class="thumb">
+          <div class="badge"><span class="dot"></span>Em Desenvolvimento</div>
+          <div class="thumb-glyph"><div class="core-icon"></div>OP-005</div>
+          <div class="frame-id">FRAME 05 / WebApp</div>
+        </div>
+        <div class="meta">
+          <div class="title">Carvão União</div>
+          <div class="tag">Web App <span class="sep">/</span> <span class="dim">Manus AI</span></div>
+        </div>
+      </article>
+
+      <article class="card" data-dead>
+        <div class="thumb">
+          <div class="badge"><span class="dot"></span>Aguardando</div>
+          <div class="thumb-glyph"><div class="core-icon"></div>OP-006</div>
+          <div class="frame-id">FRAME 06 / TBD</div>
+        </div>
+        <div class="meta">
+          <div class="title">Próxima Missão</div>
+          <div class="tag">Em breve <span class="sep">/</span> <span class="dim">Aguardando briefing</span></div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION 4 — START A MISSION
+     ============================================================ -->
+<section class="deploy" id="deploy" data-screen-label="04 Deploy">
+  <div class="deploy-shell">
+    <div class="section-tag" style="justify-content:center; display:inline-flex;"><span class="num">04 //</span> Canal de Contato</div>
+    <h2>Iniciar uma <span class="strong glitch" data-text="missão.">missão.</span></h2>
+    <p class="lead">Traga uma ideia. O Popware constrói o resto.</p>
+    <form class="deploy-form" onsubmit="event.preventDefault(); this.querySelector('button').textContent='Transmitido ✓';">
+      <input type="email" placeholder="popware@outlook.com" required />
+      <button type="submit"><span>Iniciar</span><span>→</span></button>
+    </form>
+    <div class="deploy-coords">
+      <div class="group">
+        <span>LAT <span class="v">24.9555° S</span></span>
+        <span>LON <span class="v">53.4552° W</span></span>
+      </div>
+      <div class="group">
+        <span>CANAL <span class="v">ABERTO</span></span>
+        <span>RESPOSTA <span class="v">≤ 24H</span></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-foot">
+  <div class="left"><div class="mark"></div><span>POPWARE</span></div>
+  <div>© 2026 — Criado com IA</div>
+  <div>v1.0.0 / SINAL ESTÁVEL</div>
+</footer>
+
+<script>
+  // floating particles
+  const canvas = document.getElementById('particles');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+  function resize() {
+    W = canvas.width = canvas.offsetWidth;
+    H = canvas.height = canvas.offsetHeight;
+  }
+  function spawn(n) {
+    particles = [];
+    for (let i = 0; i < n; i++) {
+      particles.push({
+        x: Math.random()*W,
+        y: Math.random()*H,
+        r: Math.random()*1.8 + 0.3,
+        vy: -(Math.random()*0.3 + 0.05),
+        vx: (Math.random()-0.5)*0.15,
+        a: Math.random()*0.6 + 0.2,
+        tw: Math.random()*Math.PI*2
+      });
+    }
+  }
+  function tick(t) {
+    ctx.clearRect(0,0,W,H);
+    for (const p of particles) {
+      p.y += p.vy;
+      p.x += p.vx;
+      p.tw += 0.02;
+      if (p.y < -10) { p.y = H+10; p.x = Math.random()*W; }
+      if (p.x < -10) p.x = W+10; if (p.x > W+10) p.x = -10;
+      const a = p.a * (0.6 + 0.4*Math.sin(p.tw));
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = `oklch(0.86 0.14 200 / ${a})`;
+      ctx.shadowColor = 'oklch(0.86 0.14 200 / 0.8)';
+      ctx.shadowBlur = 8;
+      ctx.fill();
+    }
+    requestAnimationFrame(tick);
+  }
+  window.addEventListener('resize', () => { resize(); spawn(110); });
+  resize(); spawn(110); requestAnimationFrame(tick);
+
+  // mild parallax on cursor
+  const fig = document.querySelector('.hero-figure');
+  const core = document.querySelector('.core');
+  document.addEventListener('mousemove', (e) => {
+    const dx = (e.clientX / window.innerWidth - 0.5);
+    const dy = (e.clientY / window.innerHeight - 0.5);
+    fig.style.transform = `translateX(calc(-50% + ${dx*-12}px)) translateY(${dy*-6}px)`;
+    core.style.transform = `translate(calc(-50% + ${dx*-18}px), calc(-50% + ${dy*-10}px))`;
+  });
+
+  // periodic headline glitch retrigger (CSS already handles it via animation; nudge a class to vary cadence)
+  const glitchEl = document.querySelector('.glitch');
+  setInterval(() => {
+    glitchEl.style.animation = 'none';
+    glitchEl.offsetHeight;
+    glitchEl.style.animation = '';
+  }, 7000);
+
+  // ---------- Animated count-up for stats (re-triggers each time it scrolls into view) ----------
+  function animateCount(el) {
+    const target = parseInt(el.dataset.count, 10);
+    const suffix = el.dataset.suffix || '';
+    const duration = 1500;
+    const start = performance.now();
+    function frame(now) {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      const v = Math.floor(target * eased);
+      el.innerHTML = v.toLocaleString() + suffix;
+      if (t < 1) requestAnimationFrame(frame);
+      else el.innerHTML = target.toLocaleString() + suffix;
+    }
+    requestAnimationFrame(frame);
+  }
+  // cache suffix HTML once and reset values to 0 + suffix at startup
+  document.querySelectorAll('.stat .value[data-count]').forEach(el => {
+    const suffixEl = el.querySelector('.suffix');
+    el.dataset.suffix = suffixEl ? suffixEl.outerHTML : '';
+    el.innerHTML = '0' + el.dataset.suffix;
+  });
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) {
+        animateCount(e.target);
+      } else {
+        // reset so it re-runs next time it enters
+        e.target.innerHTML = '0' + (e.target.dataset.suffix || '');
+      }
+    });
+  }, { threshold: 0.4 });
+  document.querySelectorAll('.stat .value[data-count]').forEach(v => io.observe(v));
+</script>
+
+<!-- ============================================================
+     MODAL ROOT
+     ============================================================ -->
+<div class="modal-overlay" id="modal-root" onclick="if(event.target===this) closeModal()">
+  <div class="modal" role="dialog" aria-modal="true">
+    <span class="hud-corner tl"></span>
+    <span class="hud-corner tr"></span>
+    <span class="hud-corner bl"></span>
+    <span class="hud-corner br"></span>
+    <button class="modal-close" onclick="closeModal()" aria-label="Fechar">×</button>
+    <div class="modal-tag" id="modal-tag">// Artefato</div>
+    <h3 id="modal-title"></h3>
+    <div class="modal-body" id="modal-body"></div>
+    <a class="modal-cta" id="modal-cta" href="#" target="_blank" rel="noopener" style="display:none">Ver no GitHub <span>→</span></a>
+  </div>
+</div>
+
+<script>
+  const MODALS = {
+    m1: {
+      tag: "// OP-001  · LANDING PAGE",
+      title: "Popware Landing Page",
+      body: "Tipo: Landing Page Interativa\nStack: Claude Design → HTML/CSS/JS\nStatus: Publicado\n\nDo prompt ao deploy em menos de 3 horas. Gerado integralmente com IA em uma sessão."
+    },
+    m2: {
+      tag: "// OP-002  · VISUALIZAÇÃO",
+      title: "Dashboard 3D Compras",
+      body: "Tipo: Dashboard Analítico Interativo\nStack: Python + Plotly.js\nStatus: Publicado\n\nVisualização 3D de 4.244 notas fiscais de compras (2020–2025). Filtros dinâmicos, ranking de fornecedores e métricas consolidadas."
+    },
+    m3: {
+      tag: "// OP-003  · AUTOMAÇÃO",
+      title: "AI Workflow de Compras",
+      body: "Tipo: Automação de Processos\nStack: n8n + Groq + Z-API + Google Sheets\nStatus: Finalizado\n\nFluxo automatizado de compras com IA generativa, integração WhatsApp e registro automático em planilha.",
+      cta: { label: "Ver no GitHub", href: "https://github.com/MarceloTiozoSilva/ai-workflow-compras" }
+    },
+    m4: {
+      tag: "// OP-004  · PLANILHA",
+      title: "Análise de Custos 2026",
+      body: "Tipo: Planilha de Projeção Financeira\nStack: Google Sheets + INCC\nStatus: Ativo\n\nProjeção de custos de construção por categoria com correção INCC. Caso real — obra residencial em Cascavel/PR."
+    },
+    m5: {
+      tag: "// OP-005  · WEB APP",
+      title: "Carvão União",
+      body: "Tipo: Software de Gestão Financeira\nStack: Manus AI\nStatus: Em desenvolvimento\n\nWeb app de gestão financeira baseado em caso real. Controle de fluxo, relatórios e painel operacional."
+    }
+  };
+  function openModal(id) {
+    const m = MODALS[id]; if (!m) return;
+    document.getElementById('modal-tag').textContent = m.tag;
+    document.getElementById('modal-title').textContent = m.title;
+    document.getElementById('modal-body').textContent = m.body;
+    const cta = document.getElementById('modal-cta');
+    if (m.cta) { cta.href = m.cta.href; cta.style.display = 'inline-flex'; cta.firstChild.textContent = m.cta.label + ' '; }
+    else { cta.style.display = 'none'; }
+    document.getElementById('modal-root').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal() {
+    document.getElementById('modal-root').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  document.querySelectorAll('.card[data-modal]').forEach(c => {
+    c.addEventListener('click', () => openModal(c.dataset.modal));
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+</script>
+
+</body>
+</html>
